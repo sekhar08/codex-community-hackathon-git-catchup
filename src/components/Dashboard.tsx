@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Newline, Spacer, Text, useApp } from "ink";
+import { Box, Newline, Spacer, Text } from "ink";
 
 import { CommitGroup } from "./CommitGroup.js";
 import { ConflictView } from "./ConflictView.js";
@@ -14,6 +14,7 @@ export interface DashboardProps {
   impactData: ImpactAnalysisResult;
   conflictPredictions: ConflictPrediction[];
   aiStatus: string;
+  onExit?: () => void;
 }
 
 const boxWidth = 36;
@@ -25,19 +26,20 @@ export function Dashboard({
   groups,
   impactData,
   conflictPredictions,
-  aiStatus
+  aiStatus,
+  onExit
 }: DashboardProps): React.JSX.Element {
-  const { exit } = useApp();
-
   React.useEffect(() => {
-    const timer = setTimeout(() => {
-      exit();
-    }, 0);
+    if (onExit) {
+      const timer = setTimeout(() => {
+        onExit();
+      }, 0);
 
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [exit]);
+      return () => {
+        clearTimeout(timer);
+      };
+    }
+  }, [onExit]);
 
   const commitLabel = data.commitCount === 1 ? "1 commit on main" : `${data.commitCount} commits on main`;
 

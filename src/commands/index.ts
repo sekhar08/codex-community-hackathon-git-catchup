@@ -15,6 +15,7 @@ import { analyzeCommits, type CommitGroup } from "./analyze.js";
 import { predictConflicts, type ConflictPrediction } from "./predict.js";
 import { createGitClient, describeGitError } from "../lib/git.js";
 import { getLLMClient, getSupportedProviders, saveProjectAIConfig, type AIProvider } from "../lib/openai.js";
+import { runChatMode, promptEnterChatMode } from "./chat.js";
 
 const program = new Command();
 
@@ -79,13 +80,18 @@ export async function runCli(options: FetchCommandOptions): Promise<void> {
       process.exit(0);
     }
 
+    let shouldEnterChat = false;
+
     const ink = render(
       React.createElement(Dashboard, {
         data,
         groups,
         impactData,
         conflictPredictions,
-        aiStatus
+        aiStatus,
+        onExit: () => {
+          shouldEnterChat = true;
+        }
       }),
       {
         exitOnCtrlC: false
@@ -93,6 +99,15 @@ export async function runCli(options: FetchCommandOptions): Promise<void> {
     );
 
     await ink.waitUntilExit();
+
+    if (shouldEnterChat) {
+      const enterChat = await promptEnterChatMode(process.stdin, process.stdout);
+
+      if (enterChat) {
+        await runChatMode(data, groups, impactData, conflictPredictions, aiStatus);
+      }
+    }
+
     process.exit(0);
   } catch (error) {
     spinner.stop();
