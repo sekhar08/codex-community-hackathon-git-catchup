@@ -1,0 +1,32 @@
+{
+  "name": "git-catchup",
+  "version": "0.1.0",
+  "description": "Post-holiday merge assistant for understanding incoming Git changes before you sync.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "git-catchup": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch -p tsconfig.json",
+    "lint": "tsc --noEmit -p tsconfig.json"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "commander": "^11.1.0",
+    "ink": "^6.8.0",
+    "ora": "^8.2.0",
+    "react": "^19.2.0",
+    "simple-git": "^3.28.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.50",
+    "@types/react": "^19.2.2",
+    "typescript": "^5.8.3"
+  }
+}
