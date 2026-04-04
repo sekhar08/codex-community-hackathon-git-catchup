@@ -6,6 +6,7 @@ import {
   type SimpleGit,
   type StatusResult
 } from "simple-git";
+import { existsSync, readFileSync } from "node:fs";
 
 export interface LocalChange {
   path: string;
@@ -17,6 +18,13 @@ export interface IncomingCommit {
   message: string;
   date: string;
   files: string[];
+}
+
+export interface FileCommitDetails {
+  hash: string;
+  author: string;
+  message: string;
+  date: string;
 }
 
 export class CatchupError extends Error {
@@ -176,6 +184,87 @@ export async function getLocalModifiedFiles(git: SimpleGit): Promise<LocalChange
   return mapLocalChanges(status);
 }
 
+export async function isMergeInProgress(git: SimpleGit): Promise<boolean> {
+  const status = await getStatus(git);
+
+  if ((status.conflicted?.length ?? 0) > 0) {
+    return true;
+  }
+
+  try {
+    const mergeHeadPath = (await git.revparse(["--git-path", "MERGE_HEAD"])).trim();
+    return mergeHeadPath.length > 0 && existsSync(mergeHeadPath);
+  } catch {
+    return false;
+  }
+}
+
+export async function getConflictedFiles(git: SimpleGit): Promise<string[]> {
+  const status = await getStatus(git);
+  return [...new Set((status.conflicted ?? []).map(normalizeFilePath))].sort((left, right) => left.localeCompare(right));
+}
+
+export async function getFileAtRef(
+  git: SimpleGit,
+  ref: string,
+  filePath: string
+): Promise<string | null> {
+  try {
+    return await git.show([`${ref}:${normalizeFilePath(filePath)}`]);
+  } catch {
+    return null;
+  }
+}
+
+export async function getFileCommitDetails(
+  git: SimpleGit,
+  filePath: string,
+  branch?: string
+): Promise<FileCommitDetails | null> {
+  const targetBranch = branch ?? (await resolveTargetBranch(git));
+
+  try {
+    const output = await git.raw([
+      "log",
+      "-n",
+      "1",
+      "--format=%H%x09%an%x09%s%x09%cI",
+      targetBranch,
+      "--",
+      normalizeFilePath(filePath)
+    ]);
+    const [hash = "", author = "", message = "", date = ""] = output.trim().split("\t");
+
+    if (!hash) {
+      return null;
+    }
+
+    return {
+      hash: hash.trim(),
+      author: author.trim(),
+      message: message.trim(),
+      date: date.trim()
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function getMergeHead(git: SimpleGit): Promise<string | null> {
+  try {
+    const mergeHeadPath = (await git.revparse(["--git-path", "MERGE_HEAD"])).trim();
+
+    if (!mergeHeadPath || !existsSync(mergeHeadPath)) {
+      return null;
+    }
+
+    const content = readFileSync(mergeHeadPath, "utf8").trim();
+    return content.length > 0 ? content : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getIncomingCommits(git: SimpleGit, branch?: string): Promise<IncomingCommit[]> {
   const currentBranch = await getCurrentBranch(git);
   const targetBranch = branch ?? (await resolveTargetBranch(git));
@@ -273,15 +362,21 @@ async function branchExists(git: SimpleGit, branchName: string): Promise<boolean
 }
 
 function mapLocalChanges(status: StatusResult): LocalChange[] {
-  const tracked = status.files.map((file) => ({
-    path: file.path,
-    state: formatStatus(file.working_dir, file.index)
-  }));
+  const conflicted = new Set((status.conflicted ?? []).map(normalizeFilePath));
+  const mergeInProgress = conflicted.size > 0;
+  const tracked = status.files
+    .filter((file) => !mergeInProgress || conflicted.has(normalizeFilePath(file.path)))
+    .map((file) => ({
+      path: normalizeFilePath(file.path),
+      state: conflicted.has(normalizeFilePath(file.path))
+        ? "conflicted"
+        : formatStatus(file.working_dir, file.index)
+    }));
 
   const untracked = status.not_added
     .filter((path) => !tracked.some((file) => file.path === path))
     .map((path) => ({
-      path,
+      path: normalizeFilePath(path),
       state: "untracked"
     }));
 

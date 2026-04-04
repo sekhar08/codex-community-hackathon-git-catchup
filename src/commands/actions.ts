@@ -92,7 +92,8 @@ export async function runIsolateAction(context: ActionContext): Promise<CommandA
       tone: "success",
       lines: [
         `Applied ${safeHashes.length} safe commits from ${context.data.targetBranch}.`,
-        safeGroups.length > 0 ? `Safe groups applied: ${safeGroups.join(", ")}` : "No safe groups were identified."
+        safeGroups.length > 0 ? `Safe groups applied: ${safeGroups.join(", ")}` : "No safe groups were identified.",
+        "This preserves safe content first, but branch history may still differ from the target because isolate cherry-picks commits."
       ]
     };
   } catch (error) {

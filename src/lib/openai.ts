@@ -28,6 +28,30 @@ export interface AISuggestedCommand {
   description: string;
 }
 
+export interface ConflictExplanation {
+  explanation: string;
+  recommendedAction: string;
+  mergedText?: string;
+  warnings: string[];
+  confidence: "low" | "medium" | "high";
+}
+
+export interface ConflictExplanationInput {
+  filePath: string;
+  branch: string;
+  targetBranch: string;
+  localCode: string;
+  incomingCode: string;
+  surroundingContext: string;
+  incomingCommit?: {
+    hash: string;
+    author: string;
+    message: string;
+    date: string;
+  } | null;
+  userQuestion?: string;
+}
+
 export interface SmartCommitGroupSuggestion {
   emoji: string;
   title: string;
@@ -389,6 +413,56 @@ Example output: {"commands": [{"command": "--preview", "description": "See risky
   }
 }
 
+export async function explainConflict(
+  input: ConflictExplanationInput
+): Promise<ConflictExplanation> {
+  const clientInfo = getLLMClient();
+
+  if (!clientInfo.enabled || !clientInfo.client || !clientInfo.model) {
+    return buildFallbackConflictExplanation(input);
+  }
+
+  try {
+    const parsed = await requestStructuredJson<{
+      explanation?: string;
+      recommendedAction?: string;
+      mergedText?: string;
+      warnings?: unknown[];
+      confidence?: string;
+    }>(
+      [
+        "You are a senior engineer helping resolve a git merge conflict in a terminal.",
+        "Explain the conflict clearly and safely.",
+        "If the user asks for a merge suggestion, provide a minimal mergedText that preserves behavior when possible.",
+        "Return a JSON object with explanation, recommendedAction, mergedText, warnings, and confidence.",
+        "Do not invent repository facts beyond the provided context."
+      ].join(" "),
+      input
+    );
+
+    return {
+      explanation:
+        typeof parsed.explanation === "string"
+          ? parsed.explanation
+          : buildFallbackConflictExplanation(input).explanation,
+      recommendedAction:
+        typeof parsed.recommendedAction === "string"
+          ? parsed.recommendedAction
+          : buildFallbackConflictExplanation(input).recommendedAction,
+      mergedText: typeof parsed.mergedText === "string" && parsed.mergedText.trim().length > 0 ? parsed.mergedText : undefined,
+      warnings: Array.isArray(parsed.warnings)
+        ? parsed.warnings.filter((warning): warning is string => typeof warning === "string")
+        : [],
+      confidence:
+        parsed.confidence === "low" || parsed.confidence === "high" || parsed.confidence === "medium"
+          ? parsed.confidence
+          : "medium"
+    };
+  } catch {
+    return buildFallbackConflictExplanation(input);
+  }
+}
+
 function getDefaultCommands(context: ChatContext): AISuggestedCommand[] {
   const commands: AISuggestedCommand[] = [
     { command: "--preview", description: "See risky file diffs" },
@@ -402,4 +476,28 @@ function getDefaultCommands(context: ChatContext): AISuggestedCommand[] {
   commands.push({ command: "--test", description: "Run affected tests" });
 
   return commands;
+}
+
+function buildFallbackConflictExplanation(
+  input: ConflictExplanationInput
+): ConflictExplanation {
+  const incomingCommitLine = input.incomingCommit
+    ? `${input.incomingCommit.hash.slice(0, 7)} by ${input.incomingCommit.author}: ${input.incomingCommit.message}`
+    : "an incoming mainline change";
+  const userAskedForSuggestion = /suggest|merge|combine|best/i.test(input.userQuestion ?? "");
+
+  return {
+    explanation: `Both your branch and ${input.targetBranch} changed ${input.filePath}. The incoming side was last touched by ${incomingCommitLine}, while your branch has a different version of the same block.`,
+    recommendedAction: userAskedForSuggestion
+      ? "Review both sides, then start from the incoming version and re-apply the local intent if it still matters."
+      : "Decide whether the local branch intent or the incoming mainline intent should win for this block.",
+    mergedText: userAskedForSuggestion
+      ? [input.incomingCode.trim(), "", "// Re-apply any still-needed local intent below.", input.localCode.trim()].join("\n")
+      : undefined,
+    warnings: [
+      "Fallback explanation used because AI is unavailable or returned an invalid response.",
+      "Verify the merged result before staging the file."
+    ],
+    confidence: "medium"
+  };
 }

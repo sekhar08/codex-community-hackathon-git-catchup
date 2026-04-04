@@ -371,7 +371,7 @@ export function Dashboard({
       <Text color="gray">{divider}</Text>
       <Text>git catchup --preview → See full diff before merging</Text>
       <Text>git catchup --isolate → Pull safe commits first</Text>
-      <Text>git catchup --resolve → Guided conflict resolution</Text>
+      <Text>git catchup --resolve → Launch AI-guided interactive conflict resolver</Text>
       <Text>git catchup --test → Run relevant tests automatically</Text>
       <Text color="gray">{divider}</Text>
 

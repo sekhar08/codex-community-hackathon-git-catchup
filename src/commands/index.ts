@@ -10,6 +10,7 @@ import { runFetchCommand, type DashboardData, type FetchCommandOptions } from ".
 import { analyzeImpact, type ImpactAnalysisResult } from "./impact.js";
 import { analyzeCommits, type CommitGroup } from "./analyze.js";
 import { predictConflicts, type ConflictPrediction } from "./predict.js";
+import { runResolveCommand } from "./resolve.js";
 import { createGitClient, describeGitError } from "../lib/git.js";
 import { getLLMClient, getSupportedProviders, saveProjectAIConfig, type AIProvider } from "../lib/openai.js";
 import {
@@ -29,7 +30,7 @@ program
   .option("--branch <name>", "Target branch to compare against (defaults to origin/main or main)")
   .option("--preview", "Show unified diff for risky files only")
   .option("--isolate", "Stash local changes, apply safe incoming commits first, then restore your stash")
-  .option("--resolve", "Print guided conflict steps and launch git mergetool when conflicts exist")
+  .option("--resolve", "Launch the interactive AI-guided conflict resolver")
   .option("--test", "Detect and run relevant tests for affected files")
   .addHelpText(
     "after",
@@ -185,7 +186,7 @@ async function runQuickAction(
   }
 
   if (options.resolve) {
-    printActionResult(await runResolveAction(context, { launchMergetool: true }));
+    await runResolveCommand({ requestedBranch: options.branch });
     return;
   }
 

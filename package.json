@@ -1,16 +1,20 @@
 {
   "name": "git-catchup",
   "version": "0.1.0",
-  "description": "AI-assisted CLI for safely catching up on incoming mainline changes after time away from your branch.",
+  "description": "Interactive AI-assisted terminal for reviewing incoming mainline changes and resolving merge conflicts safely.",
   "license": "MIT",
   "type": "module",
   "keywords": [
     "git",
     "cli",
     "merge",
+    "merge-conflict",
+    "conflict-resolution",
     "rebase",
     "post-holiday",
-    "catchup"
+    "catchup",
+    "ink",
+    "terminal"
   ],
   "bin": {
     "git-catchup": "./dist/index.js"
@@ -24,7 +28,7 @@
     "start": "node dist/index.js",
     "dev": "tsc --watch -p tsconfig.json",
     "lint": "tsc --noEmit -p tsconfig.json",
-    "test": "npm run build && node --test dist/components/workspace.test.js"
+    "test": "npm run build && node --test dist/components/workspace.test.js dist/commands/resolve.test.js"
   },
   "engines": {
     "node": ">=18"
