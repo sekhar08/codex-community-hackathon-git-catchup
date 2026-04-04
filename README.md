@@ -132,10 +132,10 @@ src/notifications/notification-worker.ts (modified) → "Incoming overlap: feat:
   Multiple incoming commits touch this file, so both your local edits and upstream changes may need manual reconciliation.
 
 🎯 RECOMMENDED ACTIONS:
-git catchup --preview → See full diff before merging
-git catchup --isolate → Pull safe commits first
-git catchup --resolve → Launch AI-guided interactive conflict resolver
-git catchup --test → Run relevant tests automatically
+git-catchup --preview → See full diff before merging
+git-catchup --isolate → Pull safe commits first
+git-catchup --resolve → Launch AI-guided interactive conflict resolver
+git-catchup --test → Run relevant tests automatically
 ```
 
 ## Development

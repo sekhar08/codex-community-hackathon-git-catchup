@@ -61,7 +61,7 @@ export async function runChatMode(
 
   if (!isAIEnabled()) {
     output.write("Chat mode requires AI to be configured.\n");
-    output.write("Configure AI by running: git catchup --configure\n");
+    output.write("Configure AI by running: git-catchup --configure\n");
     output.write("\nYou can still use command mode: --preview, --isolate, etc.\n");
     rl.close();
     return;
@@ -76,7 +76,7 @@ export async function runChatMode(
       }
 
       if (userInput.toLowerCase() === "exit" || userInput.toLowerCase() === "quit" || userInput.toLowerCase() === "q") {
-        output.write("\n\x1b[36mGoodbye! Run \x1b[1mgit catchup\x1b[0m\x1b[36m anytime to return.\x1b[0m\n");
+        output.write("\n\x1b[36mGoodbye! Run \x1b[1mgit-catchup\x1b[0m\x1b[36m anytime to return.\x1b[0m\n");
         break;
       }
 
@@ -91,7 +91,7 @@ export async function runChatMode(
       }
 
       if (userInput.startsWith("--")) {
-        output.write(`\x1b[33mCommand mode:\x1b[0m Run \x1b[1mgit catchup ${userInput}\x1b[0m to execute.\n`);
+        output.write(`\x1b[33mCommand mode:\x1b[0m Run \x1b[1mgit-catchup ${userInput}\x1b[0m to execute.\n`);
         output.write("Exit chat mode first with 'exit'.\n\n");
         continue;
       }
@@ -164,7 +164,7 @@ async function printSuggestions(context: ChatContext, output: NodeJS.WritableStr
     }
 
     output.write("\x1b[36m├─────────────────────────────────────────────────────\x1b[0m\n");
-    output.write("\x1b[36m│\x1b[0m Exit chat mode and run: \x1b[1mgit catchup <command>\x1b[0m\n");
+    output.write("\x1b[36m│\x1b[0m Exit chat mode and run: \x1b[1mgit-catchup <command>\x1b[0m\n");
     output.write("\x1b[36m└─────────────────────────────────────────────────────\x1b[0m\n");
     output.write("\n");
   } catch (error) {

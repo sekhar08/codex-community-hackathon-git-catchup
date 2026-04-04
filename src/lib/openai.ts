@@ -284,7 +284,7 @@ export async function streamChat(
   const clientInfo = getLLMClient();
 
   if (!clientInfo.enabled || !clientInfo.client || !clientInfo.model) {
-    throw new Error("AI is not configured. Run 'git catchup --configure' to set up AI.");
+    throw new Error("AI is not configured. Run 'git-catchup --configure' to set up AI.");
   }
 
   const stream = await clientInfo.client.chat.completions.create({
