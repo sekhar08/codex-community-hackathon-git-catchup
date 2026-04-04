@@ -1,5 +1,5 @@
 {
-  "name": "sekhar08/git-catchup",
+  "name": "git-catchup",
   "version": "0.1.0",
   "description": "Interactive AI-assisted terminal for reviewing incoming mainline changes and resolving merge conflicts safely.",
   "license": "MIT",
@@ -17,7 +17,7 @@
     "terminal"
   ],
   "bin": {
-    "git-catchup": "./dist/index.js"
+    "git-catchup": "dist/index.js"
   },
   "files": [
     "dist",
