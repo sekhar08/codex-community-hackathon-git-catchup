@@ -48,7 +48,7 @@ export async function runChatMode(
     output.write("\x1b[36m│\x1b[0m Ask me anything about the incoming changes.\n");
   } else {
     output.write("\x1b[36m│\x1b[0m \x1b[33m⚠️  AI not configured\x1b[0m\n");
-    output.write("\x1b[36m│\x1b[0m Run \x1b[1mgit catchup --configure\x1b[0m to enable AI chat.\n");
+    output.write("\x1b[36m│\x1b[0m Run \x1b[1mgit-catchup\x1b[0m and follow the AI setup prompt to enable chat.\n");
   }
 
   output.write("\x1b[36m├─────────────────────────────────────────────────────\x1b[0m\n");

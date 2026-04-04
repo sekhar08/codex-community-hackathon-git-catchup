@@ -17,9 +17,26 @@ export interface DashboardProps {
   onExit?: () => void;
 }
 
-const boxWidth = 36;
-const divider = "─".repeat(boxWidth);
-const actionDivider = "─────────────────────────────────";
+const fullWidth = 68;
+const divider = "━".repeat(fullWidth);
+
+const statusColors: Record<string, string> = {
+  modified: "red",
+  added: "yellow",
+  renamed: "blue",
+  deleted: "red",
+  untracked: "gray",
+  changed: "yellow"
+};
+
+const statusEmojis: Record<string, string> = {
+  modified: "🔴",
+  added: "🟡",
+  renamed: "🔵",
+  deleted: "🗑️",
+  untracked: "⬜",
+  changed: "🟡"
+};
 
 export function Dashboard({
   data,
@@ -41,58 +58,60 @@ export function Dashboard({
     }
   }, [onExit]);
 
-  const commitLabel = data.commitCount === 1 ? "1 commit on main" : `${data.commitCount} commits on main`;
+  const commitLabel = data.commitCount === 1 ? "1 commit" : `${data.commitCount} commits`;
 
   return (
     <Box flexDirection="column">
-      <Box
-        flexDirection="column"
-        borderStyle="round"
-        borderColor="cyan"
-        paddingX={1}
-        width={boxWidth}
-        alignSelf="flex-start"
-      >
-        <Box>
-          <Text color="cyanBright" bold>
-            Git Catchup
-          </Text>
-          <Spacer />
-        </Box>
-        <Text color="white">Post-Holiday Merge Assistant</Text>
+      <Newline />
+
+      <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
+        <Text color="cyanBright" bold>
+          🪼 git-catchup
+        </Text>
+        <Text color="white" dimColor>
+          Post-Holiday Merge Assistant
+        </Text>
       </Box>
 
       <Newline />
 
-      {data.preview ? (
-        <>
-          <Text color="gray">Preview mode enabled. Showing risky-file diff workflow.</Text>
-          <Newline />
-        </>
-      ) : null}
-
       <Text color={aiStatus.startsWith("✨") ? "magentaBright" : "gray"}>{aiStatus}</Text>
-      <Newline />
 
-      <Text color="cyan">
-        📍 {data.branch} <Text color="gray">→</Text> {data.targetBranch}
-        {data.upstream ? <Text color="gray"> • upstream {data.upstream}</Text> : null}
-      </Text>
-      <Text>
-        <Text color="blueBright">📅</Text>
-        <Text> </Text>
-        <Text bold>{data.timeSpanLabel} of changes</Text>
+      <Newline />
+      <Text color="gray">{divider}</Text>
+
+      <Box flexDirection="row" marginY={0}>
+        <Text color="cyan">📍 </Text>
+        <Text bold>
+          <Text color="white">{data.branch}</Text>
+          <Text color="gray"> → </Text>
+          <Text color="cyan">{data.targetBranch}</Text>
+        </Text>
+        {data.upstream ? (
+          <Text color="gray"> • upstream: {data.upstream}</Text>
+        ) : null}
+      </Box>
+
+      <Box flexDirection="row" marginY={0}>
+        <Text color="blueBright">📊 </Text>
+        <Text bold>{data.timeSpanLabel}</Text>
         <Text color="gray"> | </Text>
         <Text bold>{commitLabel}</Text>
-      </Text>
+        <Text color="gray"> on main</Text>
+      </Box>
+
       <Text color="gray">{divider}</Text>
       <Newline />
 
-      <Text color="cyan" bold>
-        📦 GROUPED BY FEATURE:
-      </Text>
+      <Box flexDirection="row">
+        <Text color="cyan" bold>
+          📦 GROUPED BY FEATURE
+        </Text>
+        <Text color="gray"> ({groups.length} groups)</Text>
+      </Box>
+      <Text color="gray">────────────────────────────────────────</Text>
       {groups.length === 0 ? (
-        <Text color="green">└── No incoming commits detected.</Text>
+        <Text color="green">└── ✨ All caught up! No incoming commits.</Text>
       ) : (
         groups.map((group, index) => (
           <CommitGroup key={`${group.title}:${group.count}`} group={group} isLast={index === groups.length - 1} />
@@ -102,22 +121,37 @@ export function Dashboard({
       <Text color="gray">{divider}</Text>
       <Newline />
 
-      <Text color="yellow" bold>
-        ⚠️ YOUR LOCAL CHANGES:
-      </Text>
+      <Box flexDirection="row">
+        <Text color="yellow" bold>
+          📋 YOUR LOCAL CHANGES
+        </Text>
+        <Text color="gray"> ({impactData.localChanges.length} files)</Text>
+      </Box>
+      <Text color="gray">────────────────────────────────────────</Text>
       {impactData.localChanges.length === 0 ? (
-        <Text color="green">No uncommitted files detected.</Text>
+        <Text color="green">└── ✨ No uncommitted files. Clean working tree!</Text>
       ) : (
-        impactData.localChanges.map((change) => (
-          <Text key={`${change.path}:${change.status}`}>
-            <Text>{change.path}</Text>
-            <Text color="gray"> ({change.status})</Text>
-            <Text color="gray"> → </Text>
-            <Text color={impactData.impactedFiles.get(change.path)?.length ? "yellow" : "green"}>
-              "{change.message ?? "Local change"}"
-            </Text>
-          </Text>
-        ))
+        <Box flexDirection="column">
+          {impactData.localChanges.map((change) => {
+            const emoji = statusEmojis[change.status] ?? "📄";
+            const color = statusColors[change.status] ?? "white";
+            const hasConflict = (impactData.impactedFiles.get(change.path) ?? []).length > 0;
+
+            return (
+              <Box key={`${change.path}:${change.status}`} flexDirection="row">
+                <Text color="gray">├── </Text>
+                <Text color={color}>{emoji} </Text>
+                <Text color={color}>{change.status.padEnd(10)}</Text>
+                <Text> {change.path}</Text>
+                {hasConflict ? (
+                  <Text color="red"> ⚠️</Text>
+                ) : (
+                  <Text color="green"> ✓</Text>
+                )}
+              </Box>
+            );
+          })}
+        </Box>
       )}
 
       <Newline />
@@ -127,23 +161,61 @@ export function Dashboard({
       <Text color="green">
         {data.fetchChangedRefs
           ? "✅ Fetched latest changes from remote."
-          : "✅ Fetch completed. Remote refs were already current."}
+          : "✅ Remote refs already current."}
       </Text>
 
-      {data.commitCount === 0 ? <Text color="green">✅ Already up to date with the selected branch.</Text> : null}
+      {data.commitCount === 0 ? <Text color="green">✅ Already up to date!</Text> : null}
 
       <Newline />
-      <Text color="cyan" bold>
-        🎯 RECOMMENDED ACTIONS:
-      </Text>
-      <Text color="gray">{actionDivider}</Text>
-      <Text>git catchup --preview → See full diff before merging</Text>
-      <Text>git catchup --isolate → Pull safe commits first</Text>
-      <Text>git catchup --resolve → Guided conflict resolution</Text>
-      <Text>git catchup --test → Run relevant tests automatically</Text>
-      <Text color="gray">{actionDivider}</Text>
+      <Text color="gray">{divider}</Text>
+
+      <Box flexDirection="column">
+        <Text color="cyan" bold>
+          🚀 QUICK ACTIONS
+        </Text>
+        <Box flexDirection="row" marginY={0}>
+          <Box flexDirection="row" gap={1}>
+            <Text color="cyan" dimColor>
+              ┌─────────────┐┌─────────────┐┌─────────────┐┌─────────────┐
+            </Text>
+          </Box>
+        </Box>
+        <Box flexDirection="row" gap={1}>
+          <Text color="cyan">│</Text>
+          <Text color="cyanBright" bold>
+            /preview
+          </Text>
+          <Text color="cyan">│</Text>
+          <Text color="cyanBright" bold>
+            /isolate
+          </Text>
+          <Text color="cyan">│</Text>
+          <Text color="cyanBright" bold>
+            /resolve
+          </Text>
+          <Text color="cyan">│</Text>
+          <Text color="cyanBright" bold>
+            /test
+          </Text>
+          <Text color="cyan">│</Text>
+        </Box>
+        <Box flexDirection="row">
+          <Text color="cyan" dimColor>
+            └─────────────┘└─────────────┘└─────────────┘└─────────────┘
+          </Text>
+        </Box>
+      </Box>
+
       <Newline />
-      <Text color="gray">git-catchup v0.1.0</Text>
+      <Text color="gray" dimColor>
+        💬 Type <Text bold>"chat"</Text> or <Text bold>"ask"</Text> to talk with AI about these changes
+      </Text>
+
+      <Newline />
+      <Text color="gray">{divider}</Text>
+      <Text color="gray" dimColor>
+        git-catchup v0.1.0 • Run <Text bold>"git catchup --help"</Text> for more options
+      </Text>
     </Box>
   );
 }

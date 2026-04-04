@@ -1,26 +1,27 @@
 # git-catchup
 
-AI-assisted CLI for safely catching up on `main` after a long holiday, sprint break, or week of deep work.
+AI-assisted CLI for safely catching up on incoming `main` changes after time away from your branch.
 
 ## Problem -> Solution
 
-Coming back to a branch after time away usually looks like this:
+Coming back to a branch after a holiday, sprint break, or deep-focus week usually looks like this:
 
 | Situation | What usually happens | What `git-catchup` does |
 | --- | --- | --- |
-| You were away for 10 days | `main` moved fast and nobody remembers what changed | Fetches and summarizes incoming commits |
-| You have local uncommitted work | Pulling blindly risks conflicts and lost focus | Detects overlap between your files and incoming commits |
-| The history is noisy | `git log` is technically correct but not decision-friendly | Groups changes into features, hot spots, and safe areas |
-| You need a next step | You guess between pull, stash, rebase, or resolve | Recommends preview, isolate, resolve, or test workflows |
+| `main` moved while you were away | You skim `git log` and still don’t know what matters | Fetches, groups, and summarizes incoming work |
+| You have local changes | Pulling blindly risks conflicts and context loss | Detects overlap between your files and incoming commits |
+| The history is noisy | It’s hard to tell what is safe vs risky | Highlights hot areas, safe groups, and likely conflict zones |
+| You need a next step | You guess between preview, pull, stash, or resolve | Recommends preview, isolate, resolve, and test workflows |
 
-## Why It Exists
+## What It Does
 
-`git-catchup` is built for the moment when you come back from a holiday and need a fast answer to:
+`git-catchup` helps answer:
 
 1. What changed on `main`?
-2. Which of those changes touch my files?
-3. What is safe to pull now?
-4. Where will conflicts probably happen?
+2. Which incoming commits touch my files?
+3. What is safe to pull first?
+4. Where are conflicts likely?
+5. What should I do next?
 
 ## Installation
 
@@ -51,7 +52,7 @@ Compare against a specific branch:
 git-catchup --branch origin/main
 ```
 
-Preview risky-file diffs:
+Preview risky-file diffs only:
 
 ```bash
 git-catchup --preview
@@ -59,32 +60,43 @@ git-catchup --preview
 
 ## AI Setup
 
-`git-catchup` automatically loads `.env` using `dotenv`.
+`git-catchup` auto-loads `.env` using `dotenv`.
 
-Create a `.env` file:
+### Zero-config first run
+
+If no AI provider is configured and you run `git-catchup` in an interactive terminal, the CLI will:
+
+1. ask whether you want to configure AI now
+2. let you choose a provider in the terminal
+3. prompt for your API key securely
+4. save the selected provider config into the current project’s `.env`
+5. continue the same analysis run with AI enabled
+
+OpenAI is the default first option in the terminal setup flow.
+
+### Manual `.env` setup
+
+Create a `.env` file in the project you want to analyze:
 
 ```env
-GEMINI_API_KEY=your_key_here
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-4o-mini
 ```
 
-Or export a key in your shell:
+### Provider priority
 
-```bash
-export GEMINI_API_KEY=your_key_here
-```
+When multiple provider keys exist, provider selection currently prefers:
 
-Provider priority:
-
-1. `GEMINI_API_KEY` -> `gemini-2.5-flash`
-2. `GROQ_API_KEY` -> `llama-3.3-70b-versatile`
-3. `OPENAI_API_KEY` -> `gpt-4o-mini`
+1. `OPENAI_API_KEY` -> `gpt-4o-mini`
+2. `GEMINI_API_KEY` -> `gemini-2.5-flash`
+3. `GROQ_API_KEY` -> `llama-3.3-70b-versatile`
 
 Optional overrides:
 
 ```bash
+export OPENAI_MODEL=gpt-4o-mini
 export GEMINI_MODEL=gemini-2.5-flash
 export GROQ_MODEL=llama-3.3-70b-versatile
-export OPENAI_MODEL=gpt-4o-mini
 ```
 
 ## Commands and Flags
@@ -107,23 +119,70 @@ Show unified diff for risky files only:
 git-catchup --preview
 ```
 
-Apply safe incoming commits first:
+Stash local changes and apply safe incoming commits first:
 
 ```bash
 git-catchup --isolate
 ```
 
-Launch guided conflict resolution:
+Print guided conflict-resolution steps and launch `git mergetool` if conflicts exist:
 
 ```bash
 git-catchup --resolve
 ```
 
-Run relevant tests for affected files:
+Detect and run relevant tests for affected files:
 
 ```bash
 git-catchup --test
 ```
+
+## User Flow
+
+### 1. Start analysis
+
+```bash
+git-catchup
+```
+
+The CLI will:
+
+1. optionally walk you through AI setup if no provider is configured
+2. fetch the latest remote changes
+3. detect your local uncommitted work
+4. analyze incoming commits on `main`
+5. group the changes with AI when available, or heuristics otherwise
+6. predict risky conflicts
+7. render the dashboard
+
+### 2. Read the dashboard
+
+The dashboard shows:
+
+- AI status
+- current branch and target branch
+- grouped incoming work
+- local file overlap
+- conflict-risk explanations
+- recommended next actions
+
+### 3. Pick the next action
+
+- `git-catchup --preview` to inspect risky diffs
+- `git-catchup --isolate` to apply only safe commits first
+- `git-catchup --resolve` to get guided conflict help
+- `git-catchup --test` to run likely relevant tests
+
+### 4. Optional chat mode
+
+After the dashboard run, the CLI can prompt you to enter chat mode.
+
+Chat mode lets you:
+
+- ask questions about the incoming changes
+- inspect context-aware AI suggestions
+- ask for recommended commands using `--suggest`
+- exit and then run one of the recommended real CLI actions
 
 ## Dashboard Example
 
@@ -133,7 +192,7 @@ git-catchup --test
 │ Post-Holiday Merge Assistant     │
 ╰──────────────────────────────────╯
 
-✨ AI enabled • Gemini 2.5 Flash
+✨ AI enabled • GPT-4o Mini
 
 📍 feature/demo → origin/main • upstream origin/main
 📅 14 days of changes | 200 commits on main
@@ -164,15 +223,17 @@ git catchup --isolate → Pull safe commits first
 git catchup --resolve → Guided conflict resolution
 git catchup --test → Run relevant tests automatically
 ─────────────────────────────────
+
+git-catchup v0.1.0
 ```
 
 ## Demo Flow
 
-1. Run `git-catchup` to see grouped incoming work and local overlap.
-2. Run `git-catchup --preview` to inspect risky diffs only.
-3. Run `git-catchup --isolate` to stash local work and apply safe commits.
-4. Run `git-catchup --resolve` if your branch already has merge conflicts.
-5. Run `git-catchup --test` to verify the affected area.
+1. Run `git-catchup`
+2. enable AI in-terminal if prompted
+3. inspect grouped incoming work and local overlap
+4. enter chat mode if you want AI-guided interpretation
+5. run `--preview`, `--isolate`, `--resolve`, or `--test` as your next step
 
 ## Development
 
@@ -185,8 +246,8 @@ npm start
 
 ## Roadmap
 
-- Smarter project-specific test detection
-- Interactive conflict walkthroughs inside Ink
-- AI-generated merge summaries per feature group
 - Safer isolate mode with rollback checkpoints
+- Richer project-specific test detection
+- Better interactive conflict walkthroughs in Ink
+- More structured AI merge plans
 - Exportable catch-up reports for teams

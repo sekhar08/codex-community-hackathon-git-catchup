@@ -12,25 +12,86 @@ export function ConflictView({ predictions }: ConflictViewProps): React.JSX.Elem
     return null;
   }
 
+  const highRiskCount = predictions.filter((p) => p.severity === "high").length;
+  const mediumRiskCount = predictions.filter((p) => p.severity === "medium").length;
+
   return (
     <Box flexDirection="column">
-      <Text color="red" bold>
-        ⚠️ CONFLICT RISK:
-      </Text>
+      <Box flexDirection="row">
+        <Text color="red" bold>
+          ⚠️ CONFLICT RISK
+        </Text>
+        <Text color="gray"> ({predictions.length} {predictions.length === 1 ? "file" : "files"})</Text>
+      </Box>
+      <Text color="gray">────────────────────────────────────────</Text>
+
+      {highRiskCount > 0 && (
+        <Box flexDirection="row" marginY={0}>
+          <Text color="red">🔥 HIGH RISK: {highRiskCount}</Text>
+        </Box>
+      )}
+      {mediumRiskCount > 0 && (
+        <Box flexDirection="row" marginY={0}>
+          <Text color="yellow">⚡ MEDIUM RISK: {mediumRiskCount}</Text>
+        </Box>
+      )}
+
+      <Newline />
+
       {predictions.map((prediction) => (
-        <Box key={prediction.path} flexDirection="column" marginTop={1}>
-          <Text color={prediction.severity === "high" ? "red" : "yellow"}>
-            • {prediction.path} {prediction.severity === "high" ? "(high risk)" : "(review recommended)"}
-          </Text>
-          <Text>{prediction.explanation}</Text>
-          <Text color="gray">Local: {prediction.localContext}</Text>
-          <Text color="gray">Incoming: {prediction.incomingContext}</Text>
-          <Text color={prediction.source === "ai" ? "magentaBright" : "gray"}>
-            {prediction.source === "ai" ? "AI-assisted explanation" : "Heuristic explanation"}
-          </Text>
+        <Box
+          key={prediction.path}
+          flexDirection="column"
+          borderStyle="round"
+          borderColor={prediction.severity === "high" ? "red" : "yellow"}
+          paddingX={1}
+          paddingY={0}
+          marginBottom={1}
+        >
+          <Box flexDirection="row">
+            <Text color={prediction.severity === "high" ? "red" : "yellow"} bold>
+              {prediction.severity === "high" ? "🔥" : "⚡"}
+            </Text>
+            <Text color={prediction.severity === "high" ? "red" : "yellow"} bold>
+              {" "}
+              {prediction.severity === "high" ? "HIGH RISK" : "REVIEW RECOMMENDED"}
+            </Text>
+            <Text color="gray"> | </Text>
+            <Text color="white">{prediction.path}</Text>
+          </Box>
+
+          <Newline />
+
+          <Box flexDirection="column" marginLeft={2}>
+            <Text color="white" italic>
+              {prediction.explanation}
+            </Text>
+
+            <Newline />
+
+            <Box flexDirection="row">
+              <Text color="gray">📍 Local: </Text>
+              <Text color="yellow" dimColor>
+                {prediction.localContext}
+              </Text>
+            </Box>
+            <Box flexDirection="row">
+              <Text color="gray">📥 Incoming: </Text>
+              <Text color="cyan" dimColor>
+                {prediction.incomingContext}
+              </Text>
+            </Box>
+          </Box>
+
+          <Newline />
+
+          <Box flexDirection="row">
+            <Text color={prediction.source === "ai" ? "magentaBright" : "gray"}>
+              {prediction.source === "ai" ? "🤖 AI-assisted" : "🔧 Heuristic"}-powered explanation
+            </Text>
+          </Box>
         </Box>
       ))}
-      <Newline />
     </Box>
   );
 }
