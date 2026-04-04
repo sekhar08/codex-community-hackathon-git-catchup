@@ -1,16 +1,15 @@
 import type { SimpleGit } from "simple-git";
 
 import {
+  getIncomingCommits,
+  getTimeSpanOfCommits,
   ensureGitRepository,
   ensureRemoteConfigured,
   fetchRemote,
   getCurrentBranch,
-  getDaysOfChanges,
-  getLocalModifiedFiles,
   getUpstream,
   resolveTargetBranch,
-  countIncomingCommits,
-  type LocalChange
+  type IncomingCommit
 } from "../lib/git.js";
 
 export interface FetchCommandOptions {
@@ -24,7 +23,8 @@ export interface DashboardData {
   targetBranch: string;
   commitCount: number;
   daysOfChanges: number;
-  localChanges: LocalChange[];
+  timeSpanLabel: string;
+  incomingCommits: IncomingCommit[];
   fetchChangedRefs: boolean;
   preview: boolean;
 }
@@ -39,12 +39,13 @@ export async function runFetchCommand(
   const currentBranch = await getCurrentBranch(git);
   const targetBranch = await resolveTargetBranch(git, options.branch);
   const fetchChangedRefs = await fetchRemote(git, targetBranch);
-  const [upstream, localChanges, commitCount, daysOfChanges] = await Promise.all([
+  const [upstream, incomingCommits] = await Promise.all([
     getUpstream(git, currentBranch),
-    getLocalModifiedFiles(git),
-    countIncomingCommits(git, currentBranch, targetBranch),
-    getDaysOfChanges(git, currentBranch, targetBranch)
+    getIncomingCommits(git, targetBranch)
   ]);
+  const timeSpanLabel = getTimeSpanOfCommits(incomingCommits);
+  const commitCount = incomingCommits.length;
+  const daysOfChanges = Number.parseInt(timeSpanLabel, 10) || 0;
 
   return {
     branch: currentBranch,
@@ -52,7 +53,8 @@ export async function runFetchCommand(
     targetBranch,
     commitCount,
     daysOfChanges,
-    localChanges,
+    timeSpanLabel,
+    incomingCommits,
     fetchChangedRefs,
     preview: options.preview ?? false
   };

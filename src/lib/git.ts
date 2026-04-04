@@ -12,6 +12,13 @@ export interface LocalChange {
   state: string;
 }
 
+export interface IncomingCommit {
+  hash: string;
+  message: string;
+  date: string;
+  files: string[];
+}
+
 export class CatchupError extends Error {
   readonly code:
     | "NOT_GIT_REPO"
@@ -169,6 +176,54 @@ export async function getLocalModifiedFiles(git: SimpleGit): Promise<LocalChange
   return mapLocalChanges(status);
 }
 
+export async function getIncomingCommits(git: SimpleGit, branch?: string): Promise<IncomingCommit[]> {
+  const currentBranch = await getCurrentBranch(git);
+  const targetBranch = branch ?? (await resolveTargetBranch(git));
+
+  const output = await git.raw([
+    "log",
+    "--format=__COMMIT__%n%H%x09%s%x09%cI",
+    "--name-only",
+    `${currentBranch}..${targetBranch}`
+  ]);
+
+  return parseIncomingCommitLog(output);
+}
+
+export async function getCommitsTouchingFile(
+  git: SimpleGit,
+  filePath: string,
+  branch?: string
+): Promise<IncomingCommit[]> {
+  const currentBranch = await getCurrentBranch(git);
+  const targetBranch = branch ?? (await resolveTargetBranch(git));
+  const normalizedPath = normalizeFilePath(filePath);
+  const commits = await getIncomingCommits(git, targetBranch);
+
+  return commits.filter((commit) =>
+    commit.files.some((file) => normalizeFilePath(file) === normalizedPath)
+  );
+}
+
+export function getTimeSpanOfCommits(commits: IncomingCommit[]): string {
+  if (commits.length === 0) {
+    return "0 days";
+  }
+
+  const timestamps = commits
+    .map((commit) => new Date(commit.date).getTime())
+    .filter((value) => Number.isFinite(value))
+    .sort((left, right) => left - right);
+
+  if (timestamps.length === 0) {
+    return "0 days";
+  }
+
+  const span = timestamps[timestamps.length - 1] - timestamps[0];
+  const days = Math.max(1, Math.ceil(span / (1000 * 60 * 60 * 24)));
+  return days === 1 ? "1 day" : `${days} days`;
+}
+
 export function describeGitError(error: unknown): { message: string; details?: string } {
   if (error instanceof CatchupError) {
     return { message: error.message, details: describeCause(error.cause) };
@@ -257,6 +312,29 @@ function formatStatus(workingDir: string, index: string): string {
   }
 
   return "changed";
+}
+
+function parseIncomingCommitLog(output: string): IncomingCommit[] {
+  return output
+    .split("__COMMIT__")
+    .map((block) => block.trim())
+    .filter((block) => block.length > 0)
+    .map((block) => {
+      const [header = "", ...fileLines] = block.split("\n");
+      const [hash = "", message = "", date = ""] = header.split("\t");
+
+      return {
+        hash: hash.trim(),
+        message: message.trim(),
+        date: date.trim(),
+        files: fileLines.map((line) => line.trim()).filter((line) => line.length > 0)
+      };
+    })
+    .filter((commit) => commit.hash.length > 0);
+}
+
+function normalizeFilePath(filePath: string): string {
+  return filePath.replace(/\\/g, "/");
 }
 
 function describeCause(cause: unknown): string | undefined {

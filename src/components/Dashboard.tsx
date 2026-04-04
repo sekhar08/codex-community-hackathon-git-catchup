@@ -1,16 +1,21 @@
 import React from "react";
 import { Box, Newline, Spacer, Text, useApp } from "ink";
 
+import { CommitGroup } from "./CommitGroup.js";
+import type { CommitGroup as CommitGroupData } from "../commands/analyze.js";
 import type { DashboardData } from "../commands/fetch.js";
+import type { ImpactAnalysisResult } from "../commands/impact.js";
 
 export interface DashboardProps {
   data: DashboardData;
+  groups: CommitGroupData[];
+  impactData: ImpactAnalysisResult;
 }
 
 const boxWidth = 36;
 const divider = "─".repeat(boxWidth);
 
-export function Dashboard({ data }: DashboardProps): React.JSX.Element {
+export function Dashboard({ data, groups, impactData }: DashboardProps): React.JSX.Element {
   const { exit } = useApp();
 
   React.useEffect(() => {
@@ -23,12 +28,7 @@ export function Dashboard({ data }: DashboardProps): React.JSX.Element {
     };
   }, [exit]);
 
-  const dayLabel = data.daysOfChanges === 1 ? "1 day of changes" : `${data.daysOfChanges} days of changes`;
-  const commitLabel = data.commitCount === 1 ? "1 commit on target" : `${data.commitCount} commits on target`;
-  const localChangeLabel =
-    data.localChanges.length === 1
-      ? "📦 Your local changes (1 file):"
-      : `📦 Your local changes (${data.localChanges.length} files):`;
+  const commitLabel = data.commitCount === 1 ? "1 commit on main" : `${data.commitCount} commits on main`;
 
   return (
     <Box flexDirection="column">
@@ -61,44 +61,44 @@ export function Dashboard({ data }: DashboardProps): React.JSX.Element {
       <Text>
         <Text color="blueBright">📅</Text>
         <Text> </Text>
-        <Text bold>{dayLabel}</Text>
+        <Text bold>{data.timeSpanLabel} of changes</Text>
         <Text color="gray"> | </Text>
         <Text bold>{commitLabel}</Text>
       </Text>
       <Text color="gray">{divider}</Text>
-      <Text>
-        <Text color="cyan">📍 Current branch:</Text>
-        <Text> {data.branch}</Text>
+
+      <Text color="cyan" bold>
+        📦 GROUPED BY FEATURE:
       </Text>
-      <Text>
-        <Text color="cyan">🔄 Upstream:</Text>
-        <Text> {data.upstream ?? "No upstream configured"}</Text>
+      {groups.length === 0 ? (
+        <Text color="green">└── No incoming commits detected.</Text>
+      ) : (
+        groups.map((group, index) => (
+          <CommitGroup key={`${group.title}:${group.count}`} group={group} isLast={index === groups.length - 1} />
+        ))
+      )}
+
+      <Text color="gray">{divider}</Text>
+
+      <Text color="yellow" bold>
+        ⚠️ YOUR LOCAL CHANGES:
       </Text>
-      <Text>
-        <Text color="cyan">🎯 Comparing against:</Text>
-        <Text> {data.targetBranch}</Text>
-      </Text>
+      {impactData.localChanges.length === 0 ? (
+        <Text color="green">No uncommitted files detected.</Text>
+      ) : (
+        impactData.localChanges.map((change) => (
+          <Text key={`${change.path}:${change.status}`}>
+            <Text>{change.path}</Text>
+            <Text color="gray"> ({change.status})</Text>
+            <Text color="gray"> → </Text>
+            <Text color={impactData.impactedFiles.get(change.path)?.length ? "yellow" : "green"}>
+              "{change.message ?? "Local change"}"
+            </Text>
+          </Text>
+        ))
+      )}
 
       <Newline />
-
-      {data.localChanges.length === 0 ? (
-        <>
-          <Text color="green">📦 Your local changes: none</Text>
-          <Newline />
-        </>
-      ) : (
-        <>
-          <Text color="yellow">{localChangeLabel}</Text>
-          {data.localChanges.map((change) => (
-            <Text key={`${change.path}:${change.state}`}>
-              <Text color="gray">•</Text>
-              <Text> {change.path} </Text>
-              <Text color="gray">({change.state})</Text>
-            </Text>
-          ))}
-          <Newline />
-        </>
-      )}
 
       <Text color="green">
         {data.fetchChangedRefs

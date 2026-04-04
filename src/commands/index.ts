@@ -5,6 +5,8 @@ import ora from "ora";
 
 import { Dashboard } from "../components/Dashboard.js";
 import { runFetchCommand, type FetchCommandOptions } from "./fetch.js";
+import { analyzeImpact } from "./impact.js";
+import { analyzeCommits } from "./analyze.js";
 import { createGitClient, describeGitError } from "../lib/git.js";
 
 const program = new Command();
@@ -40,9 +42,11 @@ export async function runCli(options: FetchCommandOptions): Promise<void> {
   try {
     spinner.start();
     const data = await runFetchCommand(git, options);
+    const impactData = await analyzeImpact(git, data.targetBranch);
+    const groups = await analyzeCommits(data.incomingCommits, impactData);
     spinner.stop();
 
-    const ink = render(React.createElement(Dashboard, { data }), {
+    const ink = render(React.createElement(Dashboard, { data, groups, impactData }), {
       exitOnCtrlC: false
     });
 
