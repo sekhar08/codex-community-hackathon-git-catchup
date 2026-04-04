@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Text } from "ink";
+import { Box, Newline, Text } from "ink";
 
 import type { ConflictPrediction } from "../commands/predict.js";
 
@@ -18,12 +18,19 @@ export function ConflictView({ predictions }: ConflictViewProps): React.JSX.Elem
         ⚠️ CONFLICT RISK:
       </Text>
       {predictions.map((prediction) => (
-        <Text key={prediction.path}>
-          <Text color={prediction.severity === "high" ? "red" : "yellow"}>• {prediction.path}</Text>
-          <Text color="gray"> → </Text>
+        <Box key={prediction.path} flexDirection="column" marginTop={1}>
+          <Text color={prediction.severity === "high" ? "red" : "yellow"}>
+            • {prediction.path} {prediction.severity === "high" ? "(high risk)" : "(review recommended)"}
+          </Text>
           <Text>{prediction.explanation}</Text>
-        </Text>
+          <Text color="gray">Local: {prediction.localContext}</Text>
+          <Text color="gray">Incoming: {prediction.incomingContext}</Text>
+          <Text color={prediction.source === "ai" ? "magentaBright" : "gray"}>
+            {prediction.source === "ai" ? "AI-assisted explanation" : "Heuristic explanation"}
+          </Text>
+        </Box>
       ))}
+      <Newline />
     </Box>
   );
 }

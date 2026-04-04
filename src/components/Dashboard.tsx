@@ -64,7 +64,7 @@ export function Dashboard({
 
       {data.preview ? (
         <>
-          <Text color="gray">Preview mode enabled. Phase 0 does not change behavior yet.</Text>
+          <Text color="gray">Preview mode enabled. Showing risky-file diff workflow.</Text>
           <Newline />
         </>
       ) : null}
@@ -72,6 +72,10 @@ export function Dashboard({
       <Text color={aiStatus.startsWith("✨") ? "magentaBright" : "gray"}>{aiStatus}</Text>
       <Newline />
 
+      <Text color="cyan">
+        📍 {data.branch} <Text color="gray">→</Text> {data.targetBranch}
+        {data.upstream ? <Text color="gray"> • upstream {data.upstream}</Text> : null}
+      </Text>
       <Text>
         <Text color="blueBright">📅</Text>
         <Text> </Text>
@@ -80,6 +84,7 @@ export function Dashboard({
         <Text bold>{commitLabel}</Text>
       </Text>
       <Text color="gray">{divider}</Text>
+      <Newline />
 
       <Text color="cyan" bold>
         📦 GROUPED BY FEATURE:
@@ -93,6 +98,7 @@ export function Dashboard({
       )}
 
       <Text color="gray">{divider}</Text>
+      <Newline />
 
       <Text color="yellow" bold>
         ⚠️ YOUR LOCAL CHANGES:
@@ -116,8 +122,6 @@ export function Dashboard({
 
       <ConflictView predictions={conflictPredictions} />
 
-      {conflictPredictions.length > 0 ? <Newline /> : null}
-
       <Text color="green">
         {data.fetchChangedRefs
           ? "✅ Fetched latest changes from remote."
@@ -136,6 +140,8 @@ export function Dashboard({
       <Text>git catchup --resolve → Guided conflict resolution</Text>
       <Text>git catchup --test → Run relevant tests automatically</Text>
       <Text color="gray">{actionDivider}</Text>
+      <Newline />
+      <Text color="gray">git-catchup v0.1.0</Text>
     </Box>
   );
 }

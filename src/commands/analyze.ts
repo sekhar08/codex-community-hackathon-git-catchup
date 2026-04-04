@@ -40,26 +40,31 @@ export async function analyzeCommits(
 
       return {
         groups: materializeGroups(commits, impactData, aiGroups),
-        aiStatus: `✨ AI grouping enabled (${clientInfo.provider})`
+        aiStatus: clientInfo.statusMessage
       };
     } catch (error) {
       return {
-        groups: materializeGroups(commits, impactData, commits.map((commit) => ({
-          ...describeCommitGroup(commit),
-          commitHashes: [commit.hash]
-        }))),
+        groups: buildFallbackGroups(commits, impactData),
         aiStatus: `AI grouping unavailable, using local heuristics (${describeAiFallback(error)})`
       };
     }
   }
 
   return {
-    groups: materializeGroups(commits, impactData, commits.map((commit) => ({
+    groups: buildFallbackGroups(commits, impactData),
+    aiStatus: clientInfo.statusMessage
+  };
+}
+
+function buildFallbackGroups(commits: IncomingCommit[], impactData: ImpactAnalysisResult): CommitGroup[] {
+  return materializeGroups(
+    commits,
+    impactData,
+    commits.map((commit) => ({
       ...describeCommitGroup(commit),
       commitHashes: [commit.hash]
-    }))),
-    aiStatus: `AI grouping unavailable, using local heuristics${clientInfo.reason ? ` (${clientInfo.reason})` : ""}`
-  };
+    }))
+  );
 }
 
 function materializeGroups(
@@ -115,6 +120,7 @@ function materializeGroups(
       isRisky: group.isRisky,
       riskyFiles: group.riskyFiles.size > 0 ? [...group.riskyFiles].sort() : undefined
     }))
+    .filter((group) => group.count > 0)
     .sort((left, right) => {
       if (left.isRisky !== right.isRisky) {
         return left.isRisky ? -1 : 1;
@@ -122,14 +128,6 @@ function materializeGroups(
 
       return right.count - left.count || left.title.localeCompare(right.title);
     });
-}
-
-function describeAiFallback(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return "unexpected AI error";
 }
 
 function describeCommitGroup(commit: IncomingCommit): { emoji: string; title: string } {
@@ -258,4 +256,12 @@ function pickEmoji(value: string): string {
   }
 
   return "📁";
+}
+
+function describeAiFallback(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "unexpected AI error";
 }

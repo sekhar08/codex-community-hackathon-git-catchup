@@ -1,13 +1,24 @@
 {
   "name": "git-catchup",
   "version": "0.1.0",
-  "description": "Post-holiday merge assistant for understanding incoming Git changes before you sync.",
+  "description": "AI-assisted CLI for safely catching up on incoming mainline changes after time away from your branch.",
   "license": "MIT",
-  "private": true,
   "type": "module",
+  "keywords": [
+    "git",
+    "cli",
+    "merge",
+    "rebase",
+    "post-holiday",
+    "catchup"
+  ],
   "bin": {
     "git-catchup": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
@@ -19,6 +30,7 @@
   },
   "dependencies": {
     "commander": "^11.1.0",
+    "dotenv": "^16.4.7",
     "ink": "^6.8.0",
     "openai": "^4.0.0",
     "ora": "^8.2.0",
