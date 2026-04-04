@@ -2,20 +2,31 @@ import React from "react";
 import { Box, Newline, Spacer, Text, useApp } from "ink";
 
 import { CommitGroup } from "./CommitGroup.js";
+import { ConflictView } from "./ConflictView.js";
 import type { CommitGroup as CommitGroupData } from "../commands/analyze.js";
 import type { DashboardData } from "../commands/fetch.js";
 import type { ImpactAnalysisResult } from "../commands/impact.js";
+import type { ConflictPrediction } from "../commands/predict.js";
 
 export interface DashboardProps {
   data: DashboardData;
   groups: CommitGroupData[];
   impactData: ImpactAnalysisResult;
+  conflictPredictions: ConflictPrediction[];
+  aiStatus: string;
 }
 
 const boxWidth = 36;
 const divider = "─".repeat(boxWidth);
+const actionDivider = "─────────────────────────────────";
 
-export function Dashboard({ data, groups, impactData }: DashboardProps): React.JSX.Element {
+export function Dashboard({
+  data,
+  groups,
+  impactData,
+  conflictPredictions,
+  aiStatus
+}: DashboardProps): React.JSX.Element {
   const { exit } = useApp();
 
   React.useEffect(() => {
@@ -57,6 +68,9 @@ export function Dashboard({ data, groups, impactData }: DashboardProps): React.J
           <Newline />
         </>
       ) : null}
+
+      <Text color={aiStatus.startsWith("✨") ? "magentaBright" : "gray"}>{aiStatus}</Text>
+      <Newline />
 
       <Text>
         <Text color="blueBright">📅</Text>
@@ -100,6 +114,10 @@ export function Dashboard({ data, groups, impactData }: DashboardProps): React.J
 
       <Newline />
 
+      <ConflictView predictions={conflictPredictions} />
+
+      {conflictPredictions.length > 0 ? <Newline /> : null}
+
       <Text color="green">
         {data.fetchChangedRefs
           ? "✅ Fetched latest changes from remote."
@@ -107,6 +125,17 @@ export function Dashboard({ data, groups, impactData }: DashboardProps): React.J
       </Text>
 
       {data.commitCount === 0 ? <Text color="green">✅ Already up to date with the selected branch.</Text> : null}
+
+      <Newline />
+      <Text color="cyan" bold>
+        🎯 RECOMMENDED ACTIONS:
+      </Text>
+      <Text color="gray">{actionDivider}</Text>
+      <Text>git catchup --preview → See full diff before merging</Text>
+      <Text>git catchup --isolate → Pull safe commits first</Text>
+      <Text>git catchup --resolve → Guided conflict resolution</Text>
+      <Text>git catchup --test → Run relevant tests automatically</Text>
+      <Text color="gray">{actionDivider}</Text>
     </Box>
   );
 }

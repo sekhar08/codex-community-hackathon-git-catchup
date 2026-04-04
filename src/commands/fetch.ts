@@ -15,6 +15,9 @@ import {
 export interface FetchCommandOptions {
   branch?: string;
   preview?: boolean;
+  isolate?: boolean;
+  resolve?: boolean;
+  test?: boolean;
 }
 
 export interface DashboardData {

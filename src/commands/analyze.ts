@@ -1,5 +1,6 @@
 import type { ImpactAnalysisResult } from "./impact.js";
 import type { IncomingCommit } from "../lib/git.js";
+import { getLLMClient, smartGroupCommits } from "../lib/openai.js";
 
 export type CommitGroup = {
   emoji: string;
@@ -19,36 +20,87 @@ interface GroupAccumulator {
   isRisky: boolean;
 }
 
+export interface AnalyzeCommitsResult {
+  groups: CommitGroup[];
+  aiStatus: string;
+}
+
 export async function analyzeCommits(
   commits: IncomingCommit[],
   impactData: ImpactAnalysisResult
-): Promise<CommitGroup[]> {
+): Promise<AnalyzeCommitsResult> {
+  const clientInfo = getLLMClient();
+
+  if (clientInfo.enabled) {
+    try {
+      const aiGroups = await smartGroupCommits(
+        commits,
+        impactData.localChanges.map((change) => change.path)
+      );
+
+      return {
+        groups: materializeGroups(commits, impactData, aiGroups),
+        aiStatus: `✨ AI grouping enabled (${clientInfo.provider})`
+      };
+    } catch (error) {
+      return {
+        groups: materializeGroups(commits, impactData, commits.map((commit) => ({
+          ...describeCommitGroup(commit),
+          commitHashes: [commit.hash]
+        }))),
+        aiStatus: `AI grouping unavailable, using local heuristics (${describeAiFallback(error)})`
+      };
+    }
+  }
+
+  return {
+    groups: materializeGroups(commits, impactData, commits.map((commit) => ({
+      ...describeCommitGroup(commit),
+      commitHashes: [commit.hash]
+    }))),
+    aiStatus: `AI grouping unavailable, using local heuristics${clientInfo.reason ? ` (${clientInfo.reason})` : ""}`
+  };
+}
+
+function materializeGroups(
+  commits: IncomingCommit[],
+  impactData: ImpactAnalysisResult,
+  suggestions: Array<{ emoji: string; title: string; commitHashes: string[] }>
+): CommitGroup[] {
+  const commitMap = new Map(commits.map((commit) => [commit.hash, commit]));
   const groups = new Map<string, GroupAccumulator>();
 
-  for (const commit of commits) {
-    const descriptor = describeCommitGroup(commit);
-    const key = `${descriptor.title}:${descriptor.emoji}`;
+  for (const suggestion of suggestions) {
+    const key = `${suggestion.title}:${suggestion.emoji}`;
     const existing = groups.get(key) ?? {
-      emoji: descriptor.emoji,
-      title: descriptor.title,
+      emoji: suggestion.emoji,
+      title: suggestion.title,
       commits: [],
       files: new Set<string>(),
       riskyFiles: new Set<string>(),
       isRisky: false
     };
 
-    existing.commits.push(commit);
+    for (const hash of suggestion.commitHashes) {
+      const commit = commitMap.get(hash);
 
-    for (const file of commit.files) {
-      existing.files.add(file);
-
-      if (impactData.impactedFiles.has(file)) {
-        existing.riskyFiles.add(file);
+      if (!commit) {
+        continue;
       }
-    }
 
-    if (impactData.riskyCommits.has(commit.hash)) {
-      existing.isRisky = true;
+      existing.commits.push(commit);
+
+      for (const file of commit.files) {
+        existing.files.add(file);
+
+        if (impactData.impactedFiles.has(file)) {
+          existing.riskyFiles.add(file);
+        }
+      }
+
+      if (impactData.riskyCommits.has(commit.hash)) {
+        existing.isRisky = true;
+      }
     }
 
     groups.set(key, existing);
@@ -70,6 +122,14 @@ export async function analyzeCommits(
 
       return right.count - left.count || left.title.localeCompare(right.title);
     });
+}
+
+function describeAiFallback(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "unexpected AI error";
 }
 
 function describeCommitGroup(commit: IncomingCommit): { emoji: string; title: string } {
