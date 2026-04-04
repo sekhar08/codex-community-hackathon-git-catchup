@@ -23,7 +23,8 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "dev": "tsc --watch -p tsconfig.json",
-    "lint": "tsc --noEmit -p tsconfig.json"
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "test": "npm run build && node --test dist/components/workspace.test.js"
   },
   "engines": {
     "node": ">=18"
