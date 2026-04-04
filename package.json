@@ -1,5 +1,5 @@
 {
-  "name": "git-catchup",
+  "name": "sekhar08/git-catchup",
   "version": "0.1.0",
   "description": "Interactive AI-assisted terminal for reviewing incoming mainline changes and resolving merge conflicts safely.",
   "license": "MIT",
