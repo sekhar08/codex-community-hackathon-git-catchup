@@ -27,6 +27,12 @@ export interface FileCommitDetails {
   date: string;
 }
 
+export interface RepositoryOperationState {
+  merge: boolean;
+  cherryPick: boolean;
+  rebase: boolean;
+}
+
 export class CatchupError extends Error {
   readonly code:
     | "NOT_GIT_REPO"
@@ -185,18 +191,22 @@ export async function getLocalModifiedFiles(git: SimpleGit): Promise<LocalChange
 }
 
 export async function isMergeInProgress(git: SimpleGit): Promise<boolean> {
+  return (await getRepositoryOperationState(git)).merge;
+}
+
+export async function getRepositoryOperationState(
+  git: SimpleGit
+): Promise<RepositoryOperationState> {
   const status = await getStatus(git);
+  const merge = (status.conflicted?.length ?? 0) > 0 || (await gitPathExists(git, "MERGE_HEAD"));
+  const cherryPick = await gitPathExists(git, "CHERRY_PICK_HEAD");
+  const rebase = (await gitPathExists(git, "REBASE_HEAD")) || (await gitPathExists(git, "rebase-merge")) || (await gitPathExists(git, "rebase-apply"));
 
-  if ((status.conflicted?.length ?? 0) > 0) {
-    return true;
-  }
-
-  try {
-    const mergeHeadPath = (await git.revparse(["--git-path", "MERGE_HEAD"])).trim();
-    return mergeHeadPath.length > 0 && existsSync(mergeHeadPath);
-  } catch {
-    return false;
-  }
+  return {
+    merge,
+    cherryPick,
+    rebase
+  };
 }
 
 export async function getConflictedFiles(git: SimpleGit): Promise<string[]> {
@@ -262,6 +272,15 @@ export async function getMergeHead(git: SimpleGit): Promise<string | null> {
     return content.length > 0 ? content : null;
   } catch {
     return null;
+  }
+}
+
+async function gitPathExists(git: SimpleGit, gitPathName: string): Promise<boolean> {
+  try {
+    const gitPath = (await git.revparse(["--git-path", gitPathName])).trim();
+    return gitPath.length > 0 && existsSync(gitPath);
+  } catch {
+    return false;
   }
 }
 

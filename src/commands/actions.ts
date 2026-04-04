@@ -6,7 +6,7 @@ import type { DashboardData } from "./fetch.js";
 import type { ImpactAnalysisResult } from "./impact.js";
 import type { CommitGroup } from "./analyze.js";
 import type { ConflictPrediction } from "./predict.js";
-import { createGitClient } from "../lib/git.js";
+import { createGitClient, getRepositoryOperationState } from "../lib/git.js";
 
 export interface CommandActionResult {
   title: string;
@@ -60,6 +60,37 @@ export async function runIsolateAction(context: ActionContext): Promise<CommandA
     .reverse();
   const hasLocalChanges = context.impactData.localChanges.length > 0;
   let stashed = false;
+  let skippedEmpty = 0;
+  let applied = 0;
+
+  const operationState = await getRepositoryOperationState(context.git);
+
+  if (operationState.merge) {
+    return {
+      title: "Isolate",
+      summary: "Cannot start isolate while a merge is already in progress.",
+      tone: "danger",
+      lines: ["Finish or abort the current merge before running `git-catchup --isolate`."]
+    };
+  }
+
+  if (operationState.cherryPick) {
+    return {
+      title: "Isolate",
+      summary: "Cannot start isolate while a cherry-pick is already in progress.",
+      tone: "danger",
+      lines: ["Run `git cherry-pick --continue`, `--skip`, or `--abort` before starting isolate again."]
+    };
+  }
+
+  if (operationState.rebase) {
+    return {
+      title: "Isolate",
+      summary: "Cannot start isolate while a rebase is already in progress.",
+      tone: "danger",
+      lines: ["Finish or abort the current rebase before running `git-catchup --isolate`."]
+    };
+  }
 
   if (safeHashes.length === 0) {
     return {
@@ -77,7 +108,18 @@ export async function runIsolateAction(context: ActionContext): Promise<CommandA
     }
 
     for (const hash of safeHashes) {
-      await context.git.raw(["cherry-pick", hash]);
+      try {
+        await context.git.raw(["cherry-pick", hash]);
+        applied += 1;
+      } catch (error) {
+        if (isEmptyCherryPickError(error)) {
+          await context.git.raw(["cherry-pick", "--skip"]);
+          skippedEmpty += 1;
+          continue;
+        }
+
+        throw error;
+      }
     }
 
     if (stashed) {
@@ -88,11 +130,13 @@ export async function runIsolateAction(context: ActionContext): Promise<CommandA
 
     return {
       title: "Isolate",
-      summary: `Applied ${safeHashes.length} safe commit(s) from ${context.data.targetBranch}.`,
+      summary: `Applied ${applied} safe commit(s) from ${context.data.targetBranch}${skippedEmpty > 0 ? ` and skipped ${skippedEmpty} empty commit(s)` : ""}.`,
       tone: "success",
       lines: [
-        `Applied ${safeHashes.length} safe commits from ${context.data.targetBranch}.`,
+        `Applied ${applied} safe commits from ${context.data.targetBranch}.`,
+        skippedEmpty > 0 ? `Skipped ${skippedEmpty} empty cherry-pick(s) whose changes were already present.` : "No empty cherry-picks were encountered.",
         safeGroups.length > 0 ? `Safe groups applied: ${safeGroups.join(", ")}` : "No safe groups were identified.",
+        stashed ? "Local changes were stashed before isolate and restored afterward." : "No stash savepoint was needed.",
         "This preserves safe content first, but branch history may still differ from the target because isolate cherry-picks commits."
       ]
     };
@@ -105,6 +149,18 @@ export async function runIsolateAction(context: ActionContext): Promise<CommandA
 
     throw error;
   }
+}
+
+export function isEmptyCherryPickError(error: unknown): boolean {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "";
+
+  const normalized = message.toLowerCase();
+  return normalized.includes("previous cherry-pick is now empty") || normalized.includes("nothing to commit, working tree clean");
 }
 
 export async function runResolveAction(
