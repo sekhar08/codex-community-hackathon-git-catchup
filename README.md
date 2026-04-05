@@ -25,14 +25,17 @@ When a developer returns to a long-running branch, three things are usually uncl
 ## Installation
 
 ```bash
-npm install
-npm run build
+npm install -g git-catchup
 ```
 
-Run locally:
+Requirements:
+
+- Node.js 18 or newer
+
+Run the CLI:
 
 ```bash
-node dist/index.js
+git-catchup
 ```
 
 ## AI Setup
@@ -84,6 +87,16 @@ Run likely relevant tests:
 
 ```bash
 git-catchup --test
+```
+
+## Development Setup
+
+If you want to work on the project locally:
+
+```bash
+npm install
+npm run build
+node dist/index.js
 ```
 
 ## Interactive Resolver
@@ -138,7 +151,7 @@ git-catchup --resolve → Launch AI-guided interactive conflict resolver
 git-catchup --test → Run relevant tests automatically
 ```
 
-## Development
+## Development Checks
 
 ```bash
 npm run lint
